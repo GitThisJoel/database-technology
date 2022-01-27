@@ -15,7 +15,9 @@ class Customer {
 	  last_name
 }
 class Screening {
+	{static} screening_id	
 	start_time
+	start_date	
 }
 class Theater {
 	{static} name
