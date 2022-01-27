@@ -1,0 +1,29 @@
+@startuml
+class Movie {
+	{static} year
+	{static} title
+	imdb_key
+	running_time
+}
+class Ticket {
+	{static} ticked_id
+}
+class Customer {
+	  {static} username
+	  password
+	  first_name
+	  last_name
+}
+class Screening {
+	start_time
+}
+class Theater {
+	{static} name
+	capacity	
+}
+
+Theater "1" - "*" Screening
+Screening "*" -- "1" Movie
+Screening "*" - "*" Customer
+(Screening, Customer) .. Ticket
+@enduml
