@@ -286,12 +286,12 @@ def get_performances():
         GROUP BY screening_id
     )
 
-    SELECT screening_id, start_time, start_date, t_name, title, year,
+    SELECT screenings.screening_id, start_time, start_date, t_name, title, year,
         (capacity - coalesce(tickets_sold, 0)) AS remaining
     FROM screenings
     JOIN movies USING (imdb_key)
     JOIN theaters ON theaters.name = screenings.t_name
-    LEFT JOIN ticket_count USING (screening_id)
+    LEFT JOIN ticket_count ON screenings.screening_id = ticket_count.screening_id
     """)
 
     found = [{"performanceId": screening_id,
@@ -306,7 +306,7 @@ def get_performances():
                  title,
                  year,
                  t_name,
-                 date,
+                 start_date,
                  start_time,
                  remaining in c]
 
