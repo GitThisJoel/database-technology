@@ -223,11 +223,11 @@ def get_performances():
               "remainingSeats": remaining
               }
              for screening_id,
+                 start_time,
+                 start_date,
+                 t_name,
                  title,
                  year,
-                 t_name,
-                 start_date,
-                 start_time,
                  remaining in c]
 
     response.status = 200
