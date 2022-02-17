@@ -128,41 +128,6 @@ def users():
         print("something went wrong")
         raise(e)
 
-#
-## /users/<username>/tickets
-# should give a summary of all tickets for a user, like this:
-# {
-#     "data": [
-#         {
-#             "date": "2021-02-22",
-#             "startTime": "19:00",
-#             "theater": "Kino",
-#             "title": "The Shape of Water",
-#             "year": 2017,
-#             "nbrOfTickets": 2
-#         },
-#         {
-#             "date": "2021-02-23",
-#             "startTime": "19:00",
-#             "theater": "Skandia",
-#             "title": "Moonlight",
-#             "year": 2016,
-#             "nbrOfTickets": 1
-#         }
-#     ]
-# }
-
-### /movies
-## POST
-# Create a new movie with a JSON-request such as this one:
-#
-# {
-#     "imdbKey": "tt4975722",
-#     "title": "Moonlight",
-#     "year": 2016
-# },
-#
-# If the IMDb key is taken, return 400, otherwise return /movies/<imdbKey> in a 201
 @post("/movies")
 def movies():
     movie_details = request.json
@@ -314,6 +279,58 @@ def get_performances():
 
     return {"data": found}
 
+@post("/tickets")
+def tickets():
+    c = db.cursor()
+    ticket_details = request.json
 
+    c.execute("""
+        SELECT (theaters.capacity - count()) AS remaining
+        FROM tickets
+        JOIN screenings USING(screening_id) 
+        JOIN theaters ON theaters.name = screenings.t_name
+        WHERE screening_id = ?
+    """, [ticket_details["performanceId"]]);
 
+    found = c.fetchone()
+
+    if not found:
+        response.status = 400
+        return "No tickets left"            
+        
+    remaining, = found;
+    
+    if remaining > 0:
+        c.exececute("""
+            SELECT count()
+            FROM customers
+            WHERE username = ? AND password = ?
+        """, [ticket_details["username"], ticket_details["pwd"]])
+        
+        found = c.fetchone()
+        
+        if not found:
+            response.status = 401
+            return "Wrong user credentials"            
+        
+        hits, = found;
+        
+        if hits == 1:
+            c.exececute("""
+                INSERT INTO tickets(username, screening_id)
+                VALUES (?, ?)
+                RETURNING ticket_id
+            """, [ticket_details["username"], ticket_details["performanceId"]])
+            
+            found = c.fetchone()
+            
+            if found:
+                response.status = 201
+                return f"http://localhost:7007/tickets/{t_id}"
+            else:
+                response.status = 400
+                return "An error occured"            
+        
+        
+    
 run(host='localhost', port=7007, debug=True)
