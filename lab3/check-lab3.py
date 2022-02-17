@@ -262,6 +262,7 @@ def check_ticket_hoarding():
             date = perf_info["date"]
             start_time = perf_info["startTime"]
             theater = perf_info["theater"]
+            print(perf_info["nbrOfTickets"])
             require(perf_info["nbrOfTickets"], users[username][perf_id_lookup[(theater, date, start_time)]], "the number of tickets for a user doesn't add up")
         ok("GET", resource)
 

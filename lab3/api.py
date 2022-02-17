@@ -28,7 +28,7 @@ def bing_bong():
 #    “Kino”, 10 seats
 #    “Regal”, 16 seats
 #    “Skandia”, 100 seats
-@route('/reset')
+@post('/reset')
 def reset():
     c = db.cursor()
 
@@ -36,56 +36,8 @@ def reset():
 
     tables = ["tickets", "screenings", "theaters", "customers", "movies"]
     for t in tables:
-        c.execute(f"DROP TABLE IF EXISTS {t}")
-
-    c.execute("""
-        CREATE TABLE theaters (
-            name     TEXT,
-            capacity INT,
-            PRIMARY KEY(name)
-        );"""
-    )
-
-    c.execute("""
-        CREATE TABLE screenings (
-            screening_id    TEXT DEFAULT(lower(hex(randomblob(16)))),
-            start_time      TIME,
-            start_date      DATE,
-            t_name          TEXT,
-            imdb_key        TEXT,
-            PRIMARY KEY(screening_id),
-            FOREIGN KEY(imdb_key) REFERENCES movies(imdb_key),
-            FOREIGN KEY(t_name) REFERENCES theaters(name)
-        );"""
-    )
-    c.execute("""
-        CREATE TABLE customers (
-            username    TEXT,
-            password    TEXT,
-            first_name  TEXT,
-            last_name   TEXT,
-            PRIMARY KEY(username)
-        );"""
-    )
-
-    c.execute("""
-        CREATE TABLE movies (
-            year            INT,
-            title           TEXT,
-            imdb_key        TEXT,
-            PRIMARY KEY(imdb_key)
-        );"""
-    )
-    c.execute("""
-        CREATE TABLE tickets (
-            ticket_id       TEXT DEFAULT(lower(hex(randomblob(16)))),
-            username        TEXT,
-            screening_id    TEXT,
-            PRIMARY KEY(ticket_id),
-            FOREIGN KEY(username) REFERENCES customers(username),
-            FOREIGN KEY(screening_id) REFERENCES screenings(screening_id)
-        );"""
-    )
+        c.execute(f"DELETE FROM {t}")
+        db.commit()
 
     c.execute(
         """
@@ -96,6 +48,7 @@ def reset():
                ("Skandia", 100);
         """
     )
+    db.commit()
     return
 
 @post("/users")
@@ -115,8 +68,10 @@ def users():
              credentials["fullName"].split()[1],
              credentials["pwd"]]
         )
+
+        db.commit()
         response.status = 201
-        return f"http://localhost:7007/users/{credentials['username']}"
+        return f"/users/{credentials['username']}"
     except sqlite3.IntegrityError as e:
         response.status = 400
         return f"Username already exists."
@@ -144,7 +99,7 @@ def movies():
              movie_details["year"]]
         )
         response.status = 201
-        return f"http://localhost:7007/movies/{movie_details['imdbKey']}"
+        return f"/movies/{movie_details['imdbKey']}"
     except sqlite3.IntegrityError as e:
         response.status = 400
         return f"Movie already exists."
@@ -183,7 +138,7 @@ def performances():
             db.commit()
             response.status = 201
             screening_id, = found
-            return f"http://localhost:7007/performances/{screening_id}"
+            return f"/performances/{screening_id}"
 
     except sqlite3.IntegrityError as e:
         response.status = 400
@@ -285,10 +240,16 @@ def tickets():
     ticket_details = request.json
 
     c.execute("""
-        SELECT (theaters.capacity - count()) AS remaining
-        FROM tickets
-        JOIN screenings USING(screening_id) 
-        JOIN theaters ON theaters.name = screenings.t_name
+        WITH has_tickets(screening_id) AS (
+            SELECT screening_id
+            FROM screenings
+            JOIN theaters ON theaters.name = screenings.t_name
+            LEFT JOIN tickets USING(screening_id) 
+            GROUP BY screening_id
+            HAVING (capacity - count()) > 0)
+    
+        SELECT *
+        FROM has_tickets
         WHERE screening_id = ?
     """, [ticket_details["performanceId"]]);
 
@@ -297,12 +258,9 @@ def tickets():
     if not found:
         response.status = 400
         return "No tickets left"            
-        
-    remaining, = found;
-    
-    if remaining > 0:
-        c.exececute("""
-            SELECT count()
+    else:    
+        c.execute("""
+            SELECT *
             FROM customers
             WHERE username = ? AND password = ?
         """, [ticket_details["username"], ticket_details["pwd"]])
@@ -311,26 +269,46 @@ def tickets():
         
         if not found:
             response.status = 401
-            return "Wrong user credentials"            
-        
-        hits, = found;
-        
-        if hits == 1:
-            c.exececute("""
+            return "Wrong user credentials"
+        else:             
+            c.execute("""
                 INSERT INTO tickets(username, screening_id)
                 VALUES (?, ?)
                 RETURNING ticket_id
             """, [ticket_details["username"], ticket_details["performanceId"]])
-            
+              
             found = c.fetchone()
-            
+                   
             if found:
+                db.commit()
                 response.status = 201
-                return f"http://localhost:7007/tickets/{t_id}"
+                t_id, = found
+                return f"/tickets/{t_id}"
             else:
                 response.status = 400
                 return "An error occured"            
-        
-        
+
+@route("/users/<username>/tickets")
+def get_customer_tickets(username):
+    c = db.cursor()
+    c.execute("""
+        SELECT start_date, start_time, t_name, title, year, count(*) as number_of_tickets
+        FROM tickets
+        JOIN screenings USING(screening_id)
+        JOIN movies USING(imdb_key)
+        WHERE username = ?
+        GROUP BY screening_id
+    """, [username])
     
+    found = [{"date": date,
+              "startTime": start_time,
+              "theater": t_name,
+              "title": title,
+              "year": year,
+              "nbrOfTickets": number_of_tickets}
+             for date, start_time, t_name, title, year, number_of_tickets in c]
+
+    response.status = 200
+    return {"data": found}
+
 run(host='localhost', port=7007, debug=True)
