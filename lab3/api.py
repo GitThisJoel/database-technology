@@ -1,5 +1,7 @@
-from bottle import route, run, response
+from bottle import route, post, run, response, request
+from urllib.parse import unquote
 import sqlite3
+import json
 
 db = sqlite3.connect("movies.sqlite")
 
@@ -69,10 +71,10 @@ def reset():
             year            INT,
             title           TEXT,
             imdb_key        TEXT,
-            running_time    INT,
             PRIMARY KEY(imdb_key)
         );"""
     )
+    # running_time    INT,
 
     c.execute("""
         CREATE TABLE tickets (
@@ -91,15 +93,9 @@ def reset():
         INTO theaters(name, capacity)
         VALUES ("Kino", 10),
                ("Regal", 16),
-               ("Skandia", 100)
+               ("Skandia", 100);
         """
     )
-    found = c.fetchone()
-    if not found:
-        response.status = 400
-    else:
-        response.status = 200
-
     return
 
 ### /users
@@ -113,6 +109,37 @@ def reset():
 # }
 #
 # If the username is taken, return 400, otherwise return /users/<username> in a 201
+# curl -X POST http://localhost:7007/users -H "Content-Type: application/json" --data "@names.json"
+@post("/users")
+def users():
+    credentials = request.json
+    c = db.cursor()
+    # TODO: (optional) encrypted password
+    try:
+        c.execute(
+            """
+            INSERT
+            INTO    customers(username, first_name, last_name, password)
+            VALUES  (?, ?, ?, ?)
+            """,
+            [credentials["username"],
+             credentials["fullName"].split()[0],
+             credentials["fullName"].split()[1],
+             credentials["pwd"]]
+        )
+        response.status = 201
+        return f"http://localhost:7007/users/{credentials['username']}"
+    except sqlite3.IntegrityError as e:
+        response.status = 400
+        return f"Username already exists."
+    except sqlite3.ProgrammingError as e:
+        response.status = 400
+        return f"Bad input."
+    except sqlite3.DatabaseError as e:
+        response.status = 400
+        print("something went wrong")
+        raise(e)
+
 #
 ## /users/<username>/tickets
 # should give a summary of all tickets for a user, like this:
@@ -147,27 +174,100 @@ def reset():
 #     "year": 2016
 # },
 #
-# If the IMDb key is taken, return 400, otherwise return /users/<imdbKey> in a 201
-#
-## GET
-# Return movies in the database in the following format:
-# {
-#    "data": [
-#        {
-#            "imdbKey": "tt5580390",
-#            "title": "The Shape of Water",
-#            "year": 2017
-#        },
-#        {
-#            "imdbKey": "tt4975722",
-#            "title": "Moonlight",
-#            "year": 2016
-#        },
-#        ...
-#    ]
-# }
-#
-## /movies/<imdb-key>
+# If the IMDb key is taken, return 400, otherwise return /movies/<imdbKey> in a 201
+@post("/movies")
+def users():
+    movie_details = request.json
+    c = db.cursor()
+    try:
+        c.execute(
+            """
+            INSERT
+            INTO    movies(imdb_key, title, year)
+            VALUES  (?, ?, ?)
+            """,
+            [movie_details["imdbKey"],
+             movie_details["title"],
+             movie_details["year"]]
+        )
+        response.status = 201
+        return f"http://localhost:7007/movies/{movie_details['imdbKey']}"
+    except sqlite3.IntegrityError as e:
+        response.status = 400
+        return f"Movie already exists."
+    except sqlite3.ProgrammingError as e:
+        response.status = 400
+        return f"Bad input."
+    except sqlite3.DatabaseError as e:
+        response.status = 400
+        print("something went wrong")
+        raise(e)
+
+@post("/performances")
+def performances():
+    performance_details = request.json
+    c = db.cursor()
+    try:
+        c.execute(
+            """
+            INSERT
+            INTO    screenings(imdb_key, t_name, start_date, start_time)
+            VALUES  (?, ?, ?, ?)
+            RETURNING screening_id;
+            """,
+            [performance_details["imdbKey"],
+             performance_details["theater"],
+             performance_details["date"],
+             performance_details["time"]]
+        )
+        found = c.fetchone()
+
+        if not found:
+            response.status = 400
+            return "Illegal input."
+        else:
+            db.commit()
+            response.status = 201
+            screening_id, = found
+            return f"http://localhost:7007/performances/{screening_id}"
+
+    except sqlite3.IntegrityError as e:
+        response.status = 400
+        return f"Performances already exists."
+    except sqlite3.ProgrammingError as e:
+        response.status = 400
+        return f"Bad input."
+    except sqlite3.DatabaseError as e:
+        response.status = 400
+        print("something went wrong")
+        raise(e)
+    return
+
+@route('/movies')
+def get_movies():
+    query = """
+        SELECT *
+        FROM movies
+        WHERE 1=1
+    """
+    params = []
+    if request.query.title:
+        query += " AND title = ? "
+        params.append(unquote(request.query.title))
+    if request.query.year:
+        query += " AND year = ? "
+        params.append(unquote(request.query.year))
+
+    c = db.cursor()
+    c.execute(query, params)
+
+    found = [{"imdbKey": imdb_key, "title": title, "year": year}
+    for year, title, imdb_key in c]
+
+    response.status = 200
+
+    return {"data": found}
+
 # should give information about the movie with the given IMDB-key
 #
 ## /movies\?title=Moonlight
@@ -185,7 +285,7 @@ def reset():
 #         }
 #     ]
 # }
-#
+
 ## /movies\?title=Moonlight\&year=2016
 # {
 #     "data": [
@@ -198,30 +298,8 @@ def reset():
 # }
 # Beware that we can’t send spaces in our query strings, we need to URLencode
 # them first
-#
-# /performances
-## POST
-# Create a new movie with a JSON-request such as this one:
-# {
-#       "imdbKey": "tt5580390",
-#       "theater": "Kino",
-#       "date": "2021-02-22",
-#       "time": "19:00"
-# }
-#
-# This should add a new performance of a given movie, at a given theater, at a
-# given date and time – we won’t bother checking for overlapping performances
-# etc., if the movie and theater exist, we add the performance to our database,
-# no matter what time it is scheduled for.
-#
-# The server should give each performance a unique id, and it should return the
-# resource for the new performance (as a simple string), so a successful call
-# should get a status code of 201, and a string such as:
-#
-# /performances/bfd3c03b041173ab1e45a6032a163418
-#
-# If either the movie or theater is missing in our database, we just return the
-# string "No such movie or theater", and the status code 400.
+
+## /movies/<imdb-key>
 ## GET
 # return
 # {
