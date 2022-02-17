@@ -1,20 +1,23 @@
-from bottle import route, run
+from bottle import route, run, response
+import sqlite3
+
+db = sqlite3.connect("movies.sqlite")
 
 @route('/hello')
 def hello():
     return "Hello World!"
 
+### /ping
+## GET
+# should return pong and status 200
 @route('/ping')
 def ping():
+    response.status = 200
     return "pong"
 
 @route('/bing_bong')
 def bing_bong():
     return "fuck ya life, BING BONG!"
-
-### /ping
-## GET
-# should return pong and status 200
 
 ### /reset
 ## POST
@@ -23,6 +26,81 @@ def bing_bong():
 #    “Kino”, 10 seats
 #    “Regal”, 16 seats
 #    “Skandia”, 100 seats
+@route('/reset')
+def reset():
+    c = db.cursor()
+
+    tables = ["theaters", "screenings", "customers", "movies", "tickets"]
+    for t in tables:
+        c.execute(f"DROP TABLE IF EXISTS {t}")
+
+    c.execute("""
+        CREATE TABLE theaters (
+            name     TEXT,
+            capacity INT,
+            PRIMARY KEY(name)
+        );"""
+    )
+
+    c.execute("""
+        CREATE TABLE screenings (
+            screening_id    TEXT DEFAULT(lower(hex(randomblob(16)))),
+            start_time      TIME,
+            start_date      DATE,
+            t_name          TEXT,
+            imdb_key        TEXT,
+            PRIMARY KEY(screening_id),
+            FOREIGN KEY(imdb_key) REFERENCES movies(imdb_key),
+            FOREIGN KEY(t_name) REFERENCES theaters(name)
+        );"""
+    )
+    c.execute("""
+        CREATE TABLE customers (
+            username    TEXT,
+            password    TEXT,
+            first_name  TEXT,
+            last_name   TEXT,
+            PRIMARY KEY(username)
+        );"""
+    )
+
+    c.execute("""
+        CREATE TABLE movies (
+            year            INT,
+            title           TEXT,
+            imdb_key        TEXT,
+            running_time    INT,
+            PRIMARY KEY(imdb_key)
+        );"""
+    )
+
+    c.execute("""
+        CREATE TABLE tickets (
+            ticket_id       TEXT DEFAULT(lower(hex(randomblob(16)))),
+            username        TEXT,
+            screening_id    TEXT,
+            PRIMARY KEY(ticket_id),
+            FOREIGN KEY(username) REFERENCES customers(username),
+            FOREIGN KEY(screening_id) REFERENCES screenings(screening_id)
+        );"""
+    )
+
+    c.execute(
+        """
+        INSERT
+        INTO theaters(name, capacity)
+        VALUES ("Kino", 10),
+               ("Regal", 16),
+               ("Skandia", 100)
+        """
+    )
+    found = c.fetchone()
+    if not found:
+        response.status = 400
+    else:
+        response.status = 200
+
+    return
 
 ### /users
 ##  POST
