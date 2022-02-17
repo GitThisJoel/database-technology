@@ -33,8 +33,8 @@ def reset():
     c = db.cursor()
 
     c.execute("PRAGMA foreign_keys = true;")
-    
-    tables = ["theaters", "screenings", "customers", "movies", "tickets"]
+
+    tables = ["tickets", "screenings", "theaters", "customers", "movies"]
     for t in tables:
         c.execute(f"DROP TABLE IF EXISTS {t}")
 
@@ -191,7 +191,7 @@ def movies():
         print("something went wrong")
         raise(e)
 
-    
+
 @post("/performances")
 def performances():
     performance_details = request.json
@@ -251,7 +251,7 @@ def get_movies():
     c.execute(query, params)
 
     found = [{"imdbKey": imdb_key, "title": title, "year": year}
-    for year, title, imdb_key in c]
+    for imdb_key, title, year in c]
 
     response.status = 200
 
@@ -269,25 +269,25 @@ def get_movie(imdb_key):
     found = [{"imdbKey": imdb_key,
               "title": title,
               "year": year}
-             for year, title, imdb_key in c]
+             for imdb_key, title, year in c]
 
     response.status = 200
 
     return {"data": found}
 
-    
+
 @route('/performances')
 def get_performances():
     c = db.cursor()
     c.execute("""
     WITH ticket_count (screening_id, tickets_sold) AS (
-        SELECT screening_id, count() 
+        SELECT screening_id, count()
         FROM tickets
         GROUP BY screening_id
     )
-  
+
     SELECT screening_id, start_time, start_date, t_name, title, year,
-        (capacity - coalesce(tickets_sold, 0)) AS remaining 
+        (capacity - coalesce(tickets_sold, 0)) AS remaining
     FROM screenings
     JOIN movies USING (imdb_key)
     JOIN theaters ON theaters.name = screenings.t_name
@@ -309,11 +309,11 @@ def get_performances():
                  date,
                  start_time,
                  remaining in c]
-    
+
     response.status = 200
 
     return {"data": found}
-    
+
 
 
 run(host='localhost', port=7007, debug=True)
