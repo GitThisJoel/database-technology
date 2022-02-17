@@ -32,6 +32,8 @@ def bing_bong():
 def reset():
     c = db.cursor()
 
+    c.execute("PRAGMA foreign_keys = true;")
+    
     tables = ["theaters", "screenings", "customers", "movies", "tickets"]
     for t in tables:
         c.execute(f"DROP TABLE IF EXISTS {t}")
@@ -74,8 +76,6 @@ def reset():
             PRIMARY KEY(imdb_key)
         );"""
     )
-    # running_time    INT,
-
     c.execute("""
         CREATE TABLE tickets (
             ticket_id       TEXT DEFAULT(lower(hex(randomblob(16)))),
@@ -98,18 +98,6 @@ def reset():
     )
     return
 
-### /users
-##  POST
-# Create a new user with a JSON-request such as this one:
-#
-# {
-#     "username": "alice",
-#     "fullName": "Alice Lidell",
-#     "pwd": "aliceswaytoosimplepassword"
-# }
-#
-# If the username is taken, return 400, otherwise return /users/<username> in a 201
-# curl -X POST http://localhost:7007/users -H "Content-Type: application/json" --data "@names.json"
 @post("/users")
 def users():
     credentials = request.json
@@ -176,7 +164,7 @@ def users():
 #
 # If the IMDb key is taken, return 400, otherwise return /movies/<imdbKey> in a 201
 @post("/movies")
-def users():
+def movies():
     movie_details = request.json
     c = db.cursor()
     try:
@@ -203,6 +191,7 @@ def users():
         print("something went wrong")
         raise(e)
 
+    
 @post("/performances")
 def performances():
     performance_details = request.json
@@ -246,7 +235,7 @@ def performances():
 @route('/movies')
 def get_movies():
     query = """
-        SELECT *
+        SELECT imdb_key, title, year
         FROM movies
         WHERE 1=1
     """
@@ -268,81 +257,63 @@ def get_movies():
 
     return {"data": found}
 
-# should give information about the movie with the given IMDB-key
-#
-## /movies\?title=Moonlight
-# {
-#     "data": [
-#         {
-#             "imdbKey": "tt4975722",
-#             "title": "Moonlight",
-#             "year": 2016
-#         },
-#         {
-#             "imdbKey": "tt0097045",
-#             "title": "Moonlight",
-#             "year": 1989
-#         }
-#     ]
-# }
+@route('/movies/<imdb_key>')
+def get_movie(imdb_key):
+    c = db.cursor()
+    c.execute("""
+        SELECT imdb_key, title, year
+        FROM movies
+        WHERE imdb_key = ?
+    """, [imdb_key])
 
-## /movies\?title=Moonlight\&year=2016
-# {
-#     "data": [
-#         {
-#             "imdbKey": "tt4975722",
-#             "title": "Moonlight",
-#             "year": 2016
-#         }
-#     ]
-# }
-# Beware that we can’t send spaces in our query strings, we need to URLencode
-# them first
+    found = [{"imdbKey": imdb_key,
+              "title": title,
+              "year": year}
+             for year, title, imdb_key in c]
 
-## /movies/<imdb-key>
-## GET
-# return
-# {
-#     "data": [
-#         {
-#             "performanceId": "397582600f8732a0ba01f72cac75a2c2",
-#             "date": "2021-02-22",
-#             "startTime": "19:00",
-#             "title": "The Shape of Water",
-#             "year": 2017,
-#             "theater": "Kino",
-#             "remainingSeats": 10
-#         },
-#
-#     ]
-# }
+    response.status = 200
 
-### /tickets
-## POST
-# should try to let <username> buy a ticket for <performance-id>, using the
-# password <pwd>.
-#
-# {
-#      "username": <username>,
-#      "pwd": <pwd>,
-#      "performanceId": <performance-id>
-# }
-#
-# If the order is OK, i.e., there is such a performance, there is a user with
-# the given username and password, and there are still free seats, the server
-# should add the new ticket, set the return status to 201, and return the name
-# of its new resource, which could be something like:
-# /tickets/9cd452e81be30858c8597245682255db
-#
-# Otherwise:
-#   - If there are no free seats left, the server should return the string "No
-#     tickets left" and return status 400.
-#
-#   - If there is no such user, or if the password is wrong, the server should
-#     return the string "Wrong user credentials" and the status 401.
-#
-#   - If something else goes astray, the server should return the annoyingly
-#     vague error message "Error" and a status of 400.
-#
+    return {"data": found}
+
+    
+@route('/performances')
+def get_performances():
+    c = db.cursor()
+    c.execute("""
+    WITH ticket_count (screening_id, tickets_sold) AS (
+        SELECT screening_id, count() 
+        FROM tickets
+        GROUP BY screening_id
+    )
+  
+    SELECT screening_id, start_time, start_date, t_name, title, year,
+        (capacity - coalesce(tickets_sold, 0)) AS remaining 
+    FROM screenings
+    JOIN movies USING (imdb_key)
+    JOIN theaters ON theaters.name = screenings.t_name
+    LEFT JOIN ticket_count USING (screening_id)
+    """)
+
+    found = [{"performanceId": screening_id,
+              "title": title,
+              "year": year,
+              "theater": t_name,
+              "date": start_date,
+              "startTime": start_time,
+              "remainingSeats": remaining
+              }
+             for screening_id,
+                 title,
+                 year,
+                 t_name,
+                 date,
+                 start_time,
+                 remaining in c]
+    
+    response.status = 200
+
+    return {"data": found}
+    
+
 
 run(host='localhost', port=7007, debug=True)
