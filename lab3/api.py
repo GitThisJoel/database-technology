@@ -4,6 +4,14 @@ from bottle import route, run
 def hello():
     return "Hello World!"
 
+@route('/ping')
+def ping():
+    return "pong"
+
+@route('/bing_bong')
+def bing_bong():
+    return "fuck ya life, BING BONG!"
+
 ### /ping
 ## GET
 # should return pong and status 200
@@ -54,7 +62,7 @@ def hello():
 ### /movies
 ## POST
 # Create a new movie with a JSON-request such as this one:
-# 
+#
 # {
 #     "imdbKey": "tt4975722",
 #     "title": "Moonlight",
@@ -99,7 +107,7 @@ def hello():
 #         }
 #     ]
 # }
-# 
+#
 ## /movies\?title=Moonlight\&year=2016
 # {
 #     "data": [
@@ -131,7 +139,7 @@ def hello():
 # The server should give each performance a unique id, and it should return the
 # resource for the new performance (as a simple string), so a successful call
 # should get a status code of 201, and a string such as:
-# 
+#
 # /performances/bfd3c03b041173ab1e45a6032a163418
 #
 # If either the movie or theater is missing in our database, we just return the
@@ -157,7 +165,7 @@ def hello():
 ## POST
 # should try to let <username> buy a ticket for <performance-id>, using the
 # password <pwd>.
-# 
+#
 # {
 #      "username": <username>,
 #      "pwd": <pwd>,
@@ -173,12 +181,12 @@ def hello():
 # Otherwise:
 #   - If there are no free seats left, the server should return the string "No
 #     tickets left" and return status 400.
-# 
+#
 #   - If there is no such user, or if the password is wrong, the server should
 #     return the string "Wrong user credentials" and the status 401.
-# 
+#
 #   - If something else goes astray, the server should return the annoyingly
 #     vague error message "Error" and a status of 400.
 #
 
-run(host='localhost', port=8080, debug=True)
+run(host='localhost', port=7007, debug=True)
