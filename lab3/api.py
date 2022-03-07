@@ -17,10 +17,6 @@ def ping():
     response.status = 200
     return "pong"
 
-@route('/bing_bong')
-def bing_bong():
-    return "fuck ya life, BING BONG!"
-
 ### /reset
 ## POST
 # empties the database, and enters the following theaters:
@@ -244,10 +240,10 @@ def tickets():
             SELECT screening_id
             FROM screenings
             JOIN theaters ON theaters.name = screenings.t_name
-            LEFT JOIN tickets USING(screening_id) 
+            LEFT JOIN tickets USING(screening_id)
             GROUP BY screening_id
             HAVING (capacity - count()) > 0)
-    
+
         SELECT *
         FROM has_tickets
         WHERE screening_id = ?
@@ -257,28 +253,28 @@ def tickets():
 
     if not found:
         response.status = 400
-        return "No tickets left"            
-    else:    
+        return "No tickets left"
+    else:
         c.execute("""
             SELECT *
             FROM customers
             WHERE username = ? AND password = ?
         """, [ticket_details["username"], ticket_details["pwd"]])
-        
+
         found = c.fetchone()
-        
+
         if not found:
             response.status = 401
             return "Wrong user credentials"
-        else:             
+        else:
             c.execute("""
                 INSERT INTO tickets(username, screening_id)
                 VALUES (?, ?)
                 RETURNING ticket_id
             """, [ticket_details["username"], ticket_details["performanceId"]])
-              
+
             found = c.fetchone()
-                   
+
             if found:
                 db.commit()
                 response.status = 201
@@ -286,7 +282,7 @@ def tickets():
                 return f"/tickets/{t_id}"
             else:
                 response.status = 400
-                return "An error occured"            
+                return "An error occured"
 
 @route("/users/<username>/tickets")
 def get_customer_tickets(username):
@@ -299,7 +295,7 @@ def get_customer_tickets(username):
         WHERE username = ?
         GROUP BY screening_id
     """, [username])
-    
+
     found = [{"date": date,
               "startTime": start_time,
               "theater": t_name,
