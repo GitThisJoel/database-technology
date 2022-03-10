@@ -58,7 +58,8 @@ CREATE TABLE ta (
 
 DROP TABLE IF EXISTS room;
 CREATE TABLE room (
-    room_id  TEXT,
+    room_id    TEXT,
+    room_name  TEXT
     PRIMARY KEY(room_id)
 );
 
