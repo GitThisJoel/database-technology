@@ -130,6 +130,11 @@ BEGIN
     -- below is an example of INSERT, but can also be UPDATE, DELETE or SELECT
     INSERT
     INTO investments(amount, description, repair_id)
-    VALUES (NEW.cost, ”repair”, NEW.repair_id);
+    VALUES (NEW.cost, "repair", NEW.repair_id);
 END;
+```
+
+### Date and `BETWEEN`
+```sql
+'2018-03-13' BETWEEN start_date AND finish_date;
 ```

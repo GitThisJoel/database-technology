@@ -1,0 +1,17 @@
+R(A,B,C,D)
+A  -> B => A  -> AB
+AD -> C => AD -> ABCD
+B  -> A => B  -> AB
+BD -> C => BD -> ABCD
+
+R(A,B,C,D)
+fds: A -> B, AD -> C, B -> A, BD -> C
+keys: AD, BD
+
+R1(A,B)
+fds: A -> B, B -> A
+keys: A, B           BCNF!
+
+R2(A, C, D)
+fds: AD -> C
+keys: AD             BCNF!

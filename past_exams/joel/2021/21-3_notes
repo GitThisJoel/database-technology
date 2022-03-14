@@ -1,0 +1,24 @@
+R:
+H   -> AB => H   -> ABH
+E   -> FG => E   -> EFG
+DEH -> C  => DEH -> ABCDEFGH key!  
+
+R(A, B, C, D, E, F, G, H)
+fds: H -> AB, E -> FG, DEH -> C
+keys: DEH
+
+R1(A, B, H)
+fds: H -> AB
+keys: H         BCNF
+
+R2(C, D, E, F, G, H)
+fds: E -> FG, DEH -> C
+keys: DEH
+
+R2a(E, F, G)
+fds: E -> FG
+keys: E         BCNF
+
+R2b(C, D, E, H)
+fds: DEH -> C
+keys: DEH        BCNF

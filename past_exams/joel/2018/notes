@@ -1,0 +1,53 @@
+3.
+AB -> CDEF
+A  -> DEF
+D  -> AEF
+E  -> F
+
+(a)
+-----------
+{B}* -> B
+-----------
+{AB}* -> ABCDEF    key!
+{BC}* -> BC
+{BD}* -> ABCDEF    key!
+{BE}* -> BEF
+{BF}* -> BF
+-----------
+{BCE}* -> BCEF
+{BCF}* -> BCF
+{BEF}* -> BEF
+-----------
+{BCEF}* -> BCEF
+
+ans: keys are AB and BE since they are the only ones that covers all the elements without redundancy in the key, i.e. not a super key.
+
+(b)
+The relation is not in BCNF because FD2, FD3 and FD4 are not super keys.
+Since FD3 and FD4 is not part of a key the relation is not 3NF.
+
+(c)
+AB -> CDEF
+A  -> DEF
+D  -> AEF
+E  -> F
+
+R(A, B, ..., F)
+fds: AB -> CDEF, A -> DEF, D -> AEF, E -> F)
+keys: AB, BD
+
+R1(A, D, E, F)
+fds: A -> DEF, D -> AEF, E -> F
+keys: A, D
+
+R1a(E, F)
+fds: E -> F
+keys: E           BCNF 
+
+R1b(A, D, E)
+fds: A -> DE, D -> AE
+keys: A, D        BCNF
+
+R2(A, B, C)
+fds: AB -> C
+keys: AB          BCNF
