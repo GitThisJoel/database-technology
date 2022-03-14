@@ -103,7 +103,7 @@ column IN (
 Insert:
 ```sql
 INSERT
-INTO    tabe(column1, column1, ..., columnN)
+INTO    table(column1, column1, ..., columnN)
 VALUES  (value1_1, value2_1, ..., valueN_1),
         (value1_2, value2_2, ..., valueN_2),
         (value1_3, value2_3, ..., valueN_3),;
