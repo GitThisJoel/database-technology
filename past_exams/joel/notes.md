@@ -83,7 +83,7 @@ ORDER BY column1, column2
 ```
 
 
-## `INSERT`
+## `UPDATE` and `INSERT`
 Work by
 ```sql
 UPDATE table 
@@ -98,8 +98,38 @@ column IN (
     FROM another_table
     WHERE ... -- and so on
 )
-``` 
+```
+
+Insert:
+```sql
+INSERT
+INTO    tabe(column1, column1, ..., columnN)
+VALUES  (value1_1, value2_1, ..., valueN_1),
+        (value1_2, value2_2, ..., valueN_2),
+        (value1_3, value2_3, ..., valueN_3),;
+```
 
 ## Default NULL to someting
 Can use `coalesce` that return the first non-null value in a list: 
 `coalesce(sum(cost), 0)` would return `0` if `sum(cos)` is `NULL`.
+
+## Default id
+If an id is not provided a defaultrandom value can be created
+```sql
+DEFAULT(lower(hex(randomblob(16)))
+```
+
+## Triggers
+[Read about triggers](https://www.sqlite.org/lang_createtrigger.html)
+
+```sql
+CREATE TRIGGER trigger_name
+AFTER -- BEFORE or INSTEAD OF 
+INSERT ON another_table -- DELETE or UPDATE
+BEGIN 
+    -- below is an example of INSERT, but can also be UPDATE, DELETE or SELECT
+    INSERT
+    INTO investments(amount, description, repair_id)
+    VALUES (NEW.cost, ”repair”, NEW.repair_id);
+END;
+```
