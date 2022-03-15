@@ -134,6 +134,16 @@ BEGIN
 END;
 ```
 
+Protect a table from inserts.
+```sql
+DROP TRIGGER IF EXISTS protect_transfers;
+CREATE TRIGGER protect_transfers
+BEFORE UPDATE ON transfers
+BEGIN
+  SELECT RAISE (ROLLBACK, "No updates on transfers");
+END;
+```
+
 ### Date and `BETWEEN`
 ```sql
 '2018-03-13' BETWEEN start_date AND finish_date;
